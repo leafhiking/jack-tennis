@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jack's D1 Training (Pro)</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        body { background-color: #0f172a; color: white; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        
+        .visual-frame {
+            width: 100%;
+            height: 45vh; 
+            background: #1e293b;
+            border-bottom: 2px solid #374151;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .visual-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: #000;
+        }
+
+        .btn-press { transition: transform 0.1s; }
+        .btn-press:active { transform: scale(0.95); }
+        
+        /* 进度条格子动画 */
+        .segment { transition: all 0.3s ease; }
+        .segment-active { animation: pulse-border 2s infinite; border: 1px solid white; }
+        @keyframes pulse-border { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // --- 1. 静态数据配置 ---
+        
+        const COACHES = {
+            Rafa: { color: "yellow", bg: "bg-yellow-500", text: "text-yellow-500", border: "border-yellow-500" },
+            Carlos: { color: "green", bg: "bg-green-500", text: "text-green-500", border: "border-green-500" },
+            Jannik: { color: "orange", bg: "bg-orange-500", text: "text-orange-500", border: "border-orange-500" }
+        };
+
+        const VISUALS = {
+            warmup: "./assets/warmup.gif",
+            jacks: "./assets/jacks.gif",
+            highknees: "./assets/highknees.gif",
+            squat: "./assets/squat.gif",
+            lunge: "./assets/lunge.gif",
+            plank: "./assets/plank.gif", 
+            climber: "./assets/climber.gif",
+            skater: "./assets/skater.gif", 
+            rdl: "./assets/rdl.gif", 
+            run: "./assets/run.gif"
+        };
+
+        // --- 修正后的时间轴 (紧凑版) ---
+        // 逻辑更新：
+        // 1. Intro 缩短到 8秒
+        // 2. 动作缓冲 (Buffer) 缩减到 3-4秒 (例如 60s 动作 -> 63s 视觉时长)
+        // 3. 过渡 (Gap) 缩减到 4秒
+        // 4. 休息 (Rest) 严格为 90s/60s (因为音频生成时已经处理了休息里的说话时间)
+        const SESSION_TIMELINES = {
+            A: [
+                { type: 'gap', duration: 8, text: "Intro & Focus" }, 
+                // Warmup
+                { type: 'work', duration: 63, gif: VISUALS.warmup, text: "Joint Rotations" },
+                { type: 'gap', duration: 4, text: "Next: Jumping Jacks" },
+                { type: 'work', duration: 63, gif: VISUALS.jacks, text: "Jumping Jacks" },
+                { type: 'gap', duration: 4, text: "Next: High Knees" },
+                { type: 'work', duration: 33, gif: VISUALS.highknees, text: "High Knees" },
+                { type: 'gap', duration: 5, text: "Prepare for Round 1" },
+                
+                // Round 1
+                { type: 'work', duration: 64, gif: VISUALS.squat, text: "Squats (20 Reps)" }, // 20 * 3s = 60s + 4s buffer
+                { type: 'gap', duration: 4, text: "Next: Lunges" },
+                { type: 'work', duration: 64, gif: VISUALS.lunge, text: "Lunges (20 Reps)" },
+                { type: 'gap', duration: 4, text: "Next: Wall Sit" },
+                { type: 'work', duration: 63, gif: VISUALS.squat, text: "Wall Sit" },
+                { type: 'gap', duration: 4, text: "Next: Plank" },
+                { type: 'work', duration: 48, gif: VISUALS.plank, text: "Plank" },
+                
+                // Rest 1
+                { type: 'rest', duration: 90, text: "Rest & Recover" },
+
+                // Round 2
+                { type: 'work', duration: 64, gif: VISUALS.squat, text: "Squats (Round 2)" },
+                { type: 'gap', duration: 4, text: "Next: Lunges" },
+                { type: 'work', duration: 64, gif: VISUALS.lunge, text: "Lunges" },
+                { type: 'gap', duration: 4, text: "Next: Wall Sit" },
+                { type: 'work', duration: 63, gif: VISUALS.squat, text: "Wall Sit" },
+                { type: 'gap', duration: 4, text: "Next: Plank" },
+                { type: 'work', duration: 48, gif: VISUALS.plank, text: "Plank" },
+
+                // Rest 2
+                { type: 'rest', duration: 90, text: "Rest & Recover" },
+
+                // Round 3
+                { type: 'work', duration: 64, gif: VISUALS.squat, text: "Squats (Final)" },
+                { type: 'gap', duration: 4, text: "Next: Lunges" },
+                { type: 'work', duration: 64, gif: VISUALS.lunge, text: "Lunges" },
+                { type: 'gap', duration: 4, text: "Next: Wall Sit" },
+                { type: 'work', duration: 63, gif: VISUALS.squat, text: "Wall Sit" },
+                { type: 'gap', duration: 4, text: "Next: Plank" },
+                { type: 'work', duration: 48, gif: VISUALS.plank, text: "Plank" },
+
+                { type: 'gap', duration: 10, text: "Workout Complete!" }
+            ],
+            B: [
+                { type: 'gap', duration: 8, text: "Intro & Speed" },
+                // Warmup
+                { type: 'work', duration: 63, gif: VISUALS.warmup, text: "Joint Rotations" },
+                { type: 'gap', duration: 4, text: "Next: Fast Feet" },
+                { type: 'work', duration: 63, gif: VISUALS.run, text: "Fast Feet" },
+                { type: 'gap', duration: 4, text: "Next: High Knees" },
+                { type: 'work', duration: 33, gif: VISUALS.highknees, text: "High Knees" },
+                { type: 'gap', duration: 5, text: "Prepare for Round 1" },
+
+                // Round 1
+                { type: 'work', duration: 34, gif: VISUALS.skater, text: "Skater Hops" }, // 20 * 1.5s = 30s + 4s buffer
+                { type: 'gap', duration: 4, text: "Next: Line Hops" },
+                { type: 'work', duration: 33, gif: VISUALS.highknees, text: "Line Hops" },
+                { type: 'gap', duration: 4, text: "Next: Climbers" },
+                { type: 'work', duration: 33, gif: VISUALS.climber, text: "Mountain Climbers" },
+                { type: 'gap', duration: 4, text: "Next: Single Leg RDL" },
+                { type: 'work', duration: 68, gif: VISUALS.rdl, text: "Single Leg RDL" }, // 16 * 4s = 64s + 4s buffer
+
+                // Rest 1
+                { type: 'rest', duration: 60, text: "Quick Rest" },
+
+                // Round 2
+                { type: 'work', duration: 34, gif: VISUALS.skater, text: "Skater Hops" },
+                { type: 'gap', duration: 4, text: "Next: Line Hops" },
+                { type: 'work', duration: 33, gif: VISUALS.highknees, text: "Line Hops" },
+                { type: 'gap', duration: 4, text: "Next: Climbers" },
+                { type: 'work', duration: 33, gif: VISUALS.climber, text: "Mountain Climbers" },
+                { type: 'gap', duration: 4, text: "Next: Single Leg RDL" },
+                { type: 'work', duration: 68, gif: VISUALS.rdl, text: "Single Leg RDL" },
+
+                // Rest 2
+                { type: 'rest', duration: 60, text: "Quick Rest" },
+
+                // Round 3
+                { type: 'work', duration: 34, gif: VISUALS.skater, text: "Skater Hops" },
+                { type: 'gap', duration: 4, text: "Next: Line Hops" },
+                { type: 'work', duration: 33, gif: VISUALS.highknees, text: "Line Hops" },
+                { type: 'gap', duration: 4, text: "Next: Climbers" },
+                { type: 'work', duration: 33, gif: VISUALS.climber, text: "Mountain Climbers" },
+                { type: 'gap', duration: 4, text: "Next: Single Leg RDL" },
+                { type: 'work', duration: 68, gif: VISUALS.rdl, text: "Single Leg RDL" },
+
+                { type: 'gap', duration: 10, text: "Workout Complete!" }
+            ]
+        };
+
+        // --- 2. 格式化时间辅助函数 ---
+        const formatTime = (seconds) => {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        };
+
+        // --- 3. 日历组件 ---
+        const TrainingCalendar = ({ triggerUpdate }) => {
+            const [history, setHistory] = useState([]);
+            const [todayStr, setTodayStr] = useState("");
+
+            useEffect(() => {
+                const now = new Date();
+                const str = now.toISOString().split('T')[0];
+                setTodayStr(str);
+                const saved = JSON.parse(localStorage.getItem('jack_tennis_history') || '[]');
+                setHistory(saved);
+            }, [triggerUpdate]);
+
+            const now = new Date();
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
+            const monthName = now.toLocaleString('default', { month: 'long' });
+
+            const days = [];
+            for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="h-8 w-8"></div>);
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                let statusClass = "bg-gray-800 text-gray-600";
+                
+                if (history.includes(dateStr)) statusClass = "bg-green-500 text-white font-bold shadow-lg shadow-green-500/30";
+                else if (dateStr < todayStr) statusClass = "bg-red-900/20 text-red-700";
+                else if (dateStr === todayStr) statusClass = "bg-gray-700 text-white border border-gray-500";
+
+                days.push(<div key={d} className={`h-8 w-8 rounded-full flex items-center justify-center text-xs ${statusClass}`}>{d}</div>);
+            }
+
+            return (
+                <div className="w-full bg-gray-900/50 rounded-xl p-4 border border-gray-800">
+                    <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 flex justify-between">
+                        <span>{monthName}</span><span>{history.length} Days Done</span>
+                    </h3>
+                    <div className="grid grid-cols-7 gap-2 justify-items-center">
+                        {['S','M','T','W','T','F','S'].map(d => <div key={d} className="text-[10px] text-gray-600 font-bold mb-1">{d}</div>)}
+                        {days}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 4. 训练页面 (Workout Page) ---
+        const WorkoutPage = ({ coach, session, onBack }) => {
+            const [stepIndex, setStepIndex] = useState(0);
+            const [stepTimeLeft, setStepTimeLeft] = useState(0);
+            const [elapsedTime, setElapsedTime] = useState(0);
+            const audioRef = useRef(null);
+            
+            const timeline = SESSION_TIMELINES[session];
+            const activeCoach = COACHES[coach];
+
+            // 计算总时间
+            const totalDuration = useMemo(() => timeline.reduce((acc, step) => acc + step.duration, 0), [timeline]);
+
+            useEffect(() => {
+                const fileName = `audio/Session_${session}_${coach}.mp3`;
+                if (audioRef.current) {
+                    audioRef.current.src = fileName;
+                    audioRef.current.play().catch(e => alert("Tap to start audio"));
+                }
+                
+                runStep(0);
+                
+                // 全局计时器
+                const globalTimer = setInterval(() => {
+                    setElapsedTime(prev => prev + 1);
+                }, 1000);
+
+                return () => {
+                    if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current.src = "";
+                    }
+                    clearInterval(globalTimer);
+                };
+            }, []);
+
+            const runStep = (index) => {
+                if (index >= timeline.length) return;
+                
+                setStepIndex(index);
+                const step = timeline[index];
+                setStepTimeLeft(step.duration);
+
+                const interval = setInterval(() => {
+                    setStepTimeLeft(prev => {
+                        if (prev <= 1) {
+                            clearInterval(interval);
+                            runStep(index + 1);
+                            return 0;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+            };
+
+            const currentStep = timeline[stepIndex] || timeline[timeline.length - 1];
+            const isRest = currentStep.type === 'rest';
+            const isGap = currentStep.type === 'gap';
+
+            // 过滤出主要动作步骤用于显示进度条格子
+            const mainSteps = timeline.filter(s => s.type === 'work' || s.type === 'rest');
+            // 计算当前是第几个主要步骤
+            let currentMainStepIndex = -1;
+            let tempIndex = 0;
+            for(let i=0; i<timeline.length; i++) {
+                if (timeline[i].type === 'work' || timeline[i].type === 'rest') {
+                    if (i === stepIndex) currentMainStepIndex = tempIndex;
+                    // 如果当前处于gap，高亮下一个work
+                    if (i > stepIndex && currentMainStepIndex === -1) currentMainStepIndex = tempIndex; 
+                    tempIndex++;
+                }
+            }
+            if (currentMainStepIndex === -1 && stepIndex >= timeline.length - 1) currentMainStepIndex = mainSteps.length - 1;
+
+
+            return (
+                <div className="h-screen flex flex-col bg-gray-900">
+                    {/* Top: Visual Area */}
+                    <div className="visual-frame">
+                        {currentStep.gif && !isRest && !isGap ? (
+                            <img src={currentStep.gif} alt="Exercise" />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center space-y-4 animate-pulse">
+                                <div className={`w-32 h-32 rounded-full flex items-center justify-center text-6xl border-4 border-white ${activeCoach.bg} text-black shadow-xl`}>
+                                    {coach[0]}
+                                </div>
+                                <div className="text-2xl font-bold tracking-widest text-gray-400 uppercase">
+                                    {isRest ? "Recover" : "Listen"}
+                                </div>
+                            </div>
+                        )}
+                        
+                        <button onClick={onBack} className="absolute top-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-xs backdrop-blur-sm border border-gray-600">
+                            <i className="fas fa-times"></i> Exit
+                        </button>
+                    </div>
+
+                    {/* Bottom: Info Area */}
+                    <div className={`flex-1 p-6 flex flex-col justify-between ${isRest ? 'bg-blue-900/20' : 'bg-gray-800'}`}>
+                        <div className="text-center space-y-2">
+                            <h2 className="text-2xl font-black uppercase text-white leading-tight h-16 flex items-center justify-center">
+                                {currentStep.text}
+                            </h2>
+                            <div className="text-6xl font-mono font-bold text-white">
+                                {formatTime(stepTimeLeft)}
+                            </div>
+                        </div>
+
+                        {/* Segmented Progress Bar */}
+                        <div className="space-y-2">
+                            <div className="flex justify-between text-xs text-gray-500 font-bold uppercase">
+                                <span>Progress</span>
+                                <span>{formatTime(elapsedTime)} / {formatTime(totalDuration)}</span>
+                            </div>
+                            
+                            {/* 格子进度条 */}
+                            <div className="flex gap-1 h-3 w-full">
+                                {mainSteps.map((step, idx) => {
+                                    let statusColor = "bg-gray-700"; // Future
+                                    if (idx < currentMainStepIndex) statusColor = step.type === 'rest' ? "bg-blue-500" : activeCoach.bg; // Done
+                                    else if (idx === currentMainStepIndex) statusColor = `bg-white animate-pulse shadow-[0_0_10px_rgba(255,255,255,0.8)]`; // Active
+                                    
+                                    return (
+                                        <div key={idx} className={`h-full flex-1 rounded-sm ${statusColor} segment`}></div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <audio ref={audioRef} className="hidden" />
+                </div>
+            );
+        };
+
+        // --- 5. 首页 (Setup Page) ---
+        const SetupPage = ({ onStart }) => {
+            const [coach, setCoach] = useState('Rafa');
+            const [session, setSession] = useState('A');
+            const [updateCal, setUpdateCal] = useState(0);
+
+            useEffect(() => {
+                setUpdateCal(prev => prev + 1);
+            }, []);
+
+            return (
+                <div className="min-h-screen p-6 flex flex-col items-center justify-center max-w-md mx-auto w-full space-y-8">
+                    <div className="text-center">
+                        <h1 className="text-4xl font-black italic tracking-tighter text-white">
+                            JACK'S <span className={COACHES[coach].text}>D1</span> CAMP
+                        </h1>
+                        <p className="text-gray-400 text-sm mt-1">Select Your Training</p>
+                    </div>
+
+                    <div className="w-full grid grid-cols-3 gap-3">
+                        {Object.keys(COACHES).map(c => (
+                            <button key={c} onClick={() => setCoach(c)}
+                                className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 btn-press transition-all ${coach === c ? `${COACHES[c].bg} border-white text-black` : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
+                                <div className="text-xl font-bold">{c[0]}</div>
+                                <span className="text-xs font-bold uppercase">{c}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="w-full grid grid-cols-2 gap-3">
+                        {['A', 'B'].map(s => (
+                            <button key={s} onClick={() => setSession(s)}
+                                className={`p-4 rounded-xl border-2 text-left btn-press transition-all ${session === s ? 'border-white bg-gray-700' : 'border-gray-800 bg-gray-800 opacity-60'}`}>
+                                <div className="text-2xl font-black">Session {s}</div>
+                                <div className="text-xs text-gray-400">{s === 'A' ? 'Endurance' : 'Speed'}</div>
+                            </button>
+                        ))}
+                    </div>
+
+                    <button onClick={() => onStart(coach, session)}
+                        className="w-full py-5 bg-white text-black font-black text-2xl rounded-xl shadow-xl hover:bg-gray-200 btn-press flex items-center justify-center gap-3">
+                        <i className="fas fa-play"></i> START
+                    </button>
+
+                    <TrainingCalendar triggerUpdate={updateCal} />
+                </div>
+            );
+        };
+
+        // --- Main App ---
+        const App = () => {
+            const [mode, setMode] = useState('setup');
+            const [config, setConfig] = useState({ coach: 'Rafa', session: 'A' });
+
+            const startWorkout = (c, s) => {
+                setConfig({ coach: c, session: s });
+                const now = new Date().toISOString().split('T')[0];
+                const history = JSON.parse(localStorage.getItem('jack_tennis_history') || '[]');
+                if (!history.includes(now)) {
+                    history.push(now);
+                    localStorage.setItem('jack_tennis_history', JSON.stringify(history));
+                }
+                setMode('workout');
+            };
+
+            return (
+                <div className="bg-black min-h-screen font-sans">
+                    {mode === 'setup' ? (
+                        <SetupPage onStart={startWorkout} />
+                    ) : (
+                        <WorkoutPage 
+                            coach={config.coach} 
+                            session={config.session} 
+                            onBack={() => setMode('setup')} 
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
