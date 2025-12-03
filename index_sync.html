@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jack's D1 Trainer (Perfect Sync)</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        body { background-color: #0f172a; color: white; touch-action: manipulation; }
+        .visual-frame {
+            width: 100%; height: 45vh; background: #1e293b;
+            border-bottom: 2px solid #374151; display: flex;
+            align-items: center; justify-content: center; position: relative; overflow: hidden;
+        }
+        .visual-frame img.intro-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
+        .visual-frame img.work-img { width: 100%; height: 100%; object-fit: contain; background: black; }
+        .btn-press:active { transform: scale(0.95); }
+        .segment { transition: all 0.3s; }
+        .segment-active { background: white; box-shadow: 0 0 10px white; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // 🔥 核心：直接注入从 Drive 读取的 JSON 数据
+        const SYNC_DATA = {"Rafa": {"A": [{"text": "Joint Rotations", "gif": "warmup", "gap_dur": 3.1, "work_dur": 61.61, "type": "work"}, {"text": "Jumping Jacks", "gif": "jacks", "gap_dur": 4.28, "work_dur": 61.61, "type": "work"}, {"text": "High Knees", "gif": "highknees", "gap_dur": 3.94, "work_dur": 31.61, "type": "work"}, {"text": "Squats (20 Reps)", "gif": "squat", "gap_dur": 4.7, "work_dur": 86.41, "type": "work"}, {"text": "Lunges (20 Reps)", "gif": "lunge", "gap_dur": 3.1, "work_dur": 60.0, "type": "work"}, {"text": "Wall Sit", "gif": "squat", "gap_dur": 3.29, "work_dur": 61.61, "type": "work"}, {"text": "Plank", "gif": "plank", "gap_dur": 3.0, "work_dur": 46.61, "type": "work"}, {"text": "Rest & Recover", "gif": null, "gap_dur": 3.71, "work_dur": 86.29, "type": "rest"}, {"text": "Squats", "gif": "squat", "gap_dur": 3.0, "work_dur": 86.41, "type": "work"}, {"text": "Lunges", "gif": "lunge", "gap_dur": 3.0, "work_dur": 60.0, "type": "work"}, {"text": "Wall Sit", "gif": "squat", "gap_dur": 5.25, "work_dur": 61.61, "type": "work"}, {"text": "Plank", "gif": "plank", "gap_dur": 3.63, "work_dur": 46.61, "type": "work"}, {"text": "Rest & Recover", "gif": null, "gap_dur": 3.37, "work_dur": 86.63, "type": "rest"}, {"text": "Squats", "gif": "squat", "gap_dur": 3.0, "work_dur": 86.41, "type": "work"}, {"text": "Lunges", "gif": "lunge", "gap_dur": 3.71, "work_dur": 60.0, "type": "work"}, {"text": "Wall Sit", "gif": "squat", "gap_dur": 5.19, "work_dur": 61.61, "type": "work"}, {"text": "Plank", "gif": "plank", "gap_dur": 3.94, "work_dur": 46.61, "type": "work"}, {"text": "Done!", "gif": null, "gap_dur": 3.47, "work_dur": 10, "type": "done"}], "B": [{"text": "Joint Rotations", "gif": "warmup", "gap_dur": 3.0, "work_dur": 61.61, "type": "work"}, {"text": "Fast Feet", "gif": "run", "gap_dur": 3.86, "work_dur": 61.61, "type": "work"}, {"text": "High Knees", "gif": "highknees", "gap_dur": 3.0, "work_dur": 31.61, "type": "work"}, {"text": "Skater Hops", "gif": "skater", "gap_dur": 3.86, "work_dur": 30.0, "type": "work"}, {"text": "Line Hops", "gif": "highknees", "gap_dur": 3.81, "work_dur": 31.61, "type": "work"}, {"text": "Mountain Climbers", "gif": "climber", "gap_dur": 3.81, "work_dur": 31.61, "type": "work"}, {"text": "Single Leg RDL", "gif": "rdl", "gap_dur": 5.53, "work_dur": 64.0, "type": "work"}, {"text": "Quick Rest", "gif": null, "gap_dur": 2.4, "work_dur": 57.6, "type": "rest"}, {"text": "Skater Hops", "gif": "skater", "gap_dur": 3.0, "work_dur": 30.0, "type": "work"}, {"text": "Line Hops", "gif": "highknees", "gap_dur": 3.0, "work_dur": 31.61, "type": "work"}, {"text": "Mountain Climbers", "gif": "climber", "gap_dur": 3.0, "work_dur": 31.61, "type": "work"}, {"text": "Single Leg RDL", "gif": "rdl", "gap_dur": 3.68, "work_dur": 64.0, "type": "work"}, {"text": "Quick Rest", "gif": null, "gap_dur": 2.64, "work_dur": 57.36, "type": "rest"}, {"text": "Skater Hops", "gif": "skater", "gap_dur": 3.0, "work_dur": 30.0, "type": "work"}, {"text": "Line Hops", "gif": "highknees", "gap_dur": 3.0, "work_dur": 31.61, "type": "work"}, {"text": "Mountain Climbers", "gif": "climber", "gap_dur": 3.0, "work_dur": 31.61, "type": "work"}, {"text": "Single Leg RDL", "gif": "rdl", "gap_dur": 3.0, "work_dur": 64.0, "type": "work"}, {"text": "Done!", "gif": null, "gap_dur": 3.44, "work_dur": 10, "type": "done"}]}, "Carlos": {"A": [{"text": "Joint Rotations", "gif": "warmup", "gap_dur": 3.0, "work_dur": 61.85, "type": "work"}, {"text": "Jumping Jacks", "gif": "jacks", "gap_dur": 3.63, "work_dur": 61.85, "type": "work"}, {"text": "High Knees", "gif": "highknees", "gap_dur": 3.26, "work_dur": 31.86, "type": "work"}, {"text": "Squats (20 Reps)", "gif": "squat", "gap_dur": 4.96, "work_dur": 94.22, "type": "work"}, {"text": "Lunges (20 Reps)", "gif": "lunge", "gap_dur": 3.16, "work_dur": 60.0, "type": "work"}, {"text": "Wall Sit", "gif": "squat", "gap_dur": 3.0, "work_dur": 61.85, "type": "work"}, {"text": "Plank", "gif": "plank", "gap_dur": 3.0, "work_dur": 46.85, "type": "work"}, {"text": "Rest & Recover", "gif": null, "gap_dur": 3.16, "work_dur": 86.84, "type": "rest"}, {"text": "Squats", "gif": "squat", "gap_dur": 3.0, "work_dur": 94.22, "type": "work"}, {"text": "Lunges", "gif": "lunge", "gap_dur": 3.0, "work_dur": 60.0, "type": "work"}, {"text": "Wall Sit", "gif": "squat", "gap_dur": 3.0, "work_dur": 61.85, "type": "work"}, {"text": "Plank", "gif": "plank", "gap_dur": 3.0, "work_dur": 46.85, "type": "work"}, {"text": "Rest & Recover", "gif": null, "gap_dur": 3.76, "work_dur": 86.24, "type": "rest"}, {"text": "Squats", "gif": "squat", "gap_dur": 3.0, "work_dur": 94.22, "type": "work"}, {"text": "Lunges", "gif": "lunge", "gap_dur": 3.0, "work_dur": 60.0, "type": "work"}, {"text": "Wall Sit", "gif": "squat", "gap_dur": 4.1, "work_dur": 61.85, "type": "work"}, {"text": "Plank", "gif": "plank", "gap_dur": 3.68, "work_dur": 46.85, "type": "work"}, {"text": "Done!", "gif": null, "gap_dur": 3.86, "work_dur": 10, "type": "done"}], "B": [{"text": "Joint Rotations", "gif": "warmup", "gap_dur": 3.0, "work_dur": 61.85, "type": "work"}, {"text": "Fast Feet", "gif": "run", "gap_dur": 3.1, "work_dur": 61.85, "type": "work"}, {"text": "High Knees", "gif": "highknees", "gap_dur": 3.0, "work_dur": 31.86, "type": "work"}, {"text": "Skater Hops", "gif": "skater", "gap_dur": 3.39, "work_dur": 30.0, "type": "work"}, {"text": "Line Hops", "gif": "highknees", "gap_dur": 3.44, "work_dur": 31.86, "type": "work"}, {"text": "Mountain Climbers", "gif": "climber", "gap_dur": 3.0, "work_dur": 31.86, "type": "work"}, {"text": "Single Leg RDL", "gif": "rdl", "gap_dur": 3.57, "work_dur": 64.0, "type": "work"}, {"text": "Quick Rest", "gif": null, "gap_dur": 2.59, "work_dur": 57.41, "type": "rest"}, {"text": "Skater Hops", "gif": "skater", "gap_dur": 3.0, "work_dur": 30.0, "type": "work"}, {"text": "Line Hops", "gif": "highknees", "gap_dur": 3.0, "work_dur": 31.86, "type": "work"}, {"text": "Mountain Climbers", "gif": "climber", "gap_dur": 3.0, "work_dur": 31.86, "type": "work"}, {"text": "Single Leg RDL", "gif": "rdl", "gap_dur": 3.0, "work_dur": 64.0, "type": "work"}, {"text": "Quick Rest", "gif": null, "gap_dur": 2.69, "work_dur": 57.31, "type": "rest"}, {"text": "Skater Hops", "gif": "skater", "gap_dur": 3.0, "work_dur": 30.0, "type": "work"}, {"text": "Line Hops", "gif": "highknees", "gap_dur": 3.0, "work_dur": 31.86, "type": "work"}, {"text": "Mountain Climbers", "gif": "climber", "gap_dur": 3.0, "work_dur": 31.86, "type": "work"}, {"text": "Single Leg RDL", "gif": "rdl", "gap_dur": 3.0, "work_dur": 64.0, "type": "work"}, {"text": "Done!", "gif": null, "gap_dur": 4.1, "work_dur": 10, "type": "done"}]}, "Jannik": {"A": [{"text": "Joint Rotations", "gif": "warmup", "gap_dur": 3.34, "work_dur": 61.87, "type": "work"}, {"text": "Jumping Jacks", "gif": "jacks", "gap_dur": 3.39, "work_dur": 61.87, "type": "work"}, {"text": "High Knees", "gif": "highknees", "gap_dur": 3.81, "work_dur": 31.87, "type": "work"}, {"text": "Squats (20 Reps)", "gif": "squat", "gap_dur": 5.19, "work_dur": 93.02, "type": "work"}, {"text": "Lunges (20 Reps)", "gif": "lunge", "gap_dur": 3.44, "work_dur": 60.0, "type": "work"}, {"text": "Wall Sit", "gif": "squat", "gap_dur": 3.0, "work_dur": 61.87, "type": "work"}, {"text": "Plank", "gif": "plank", "gap_dur": 3.0, "work_dur": 46.87, "type": "work"}, {"text": "Rest & Recover", "gif": null, "gap_dur": 3.76, "work_dur": 86.24, "type": "rest"}, {"text": "Squats", "gif": "squat", "gap_dur": 3.0, "work_dur": 93.02, "type": "work"}, {"text": "Lunges", "gif": "lunge", "gap_dur": 3.0, "work_dur": 60.0, "type": "work"}, {"text": "Wall Sit", "gif": "squat", "gap_dur": 3.81, "work_dur": 61.87, "type": "work"}, {"text": "Plank", "gif": "plank", "gap_dur": 3.0, "work_dur": 46.87, "type": "work"}, {"text": "Rest & Recover", "gif": null, "gap_dur": 3.47, "work_dur": 86.53, "type": "rest"}, {"text": "Squats", "gif": "squat", "gap_dur": 3.0, "work_dur": 93.02, "type": "work"}, {"text": "Lunges", "gif": "lunge", "gap_dur": 3.0, "work_dur": 60.0, "type": "work"}, {"text": "Wall Sit", "gif": "squat", "gap_dur": 4.28, "work_dur": 61.87, "type": "work"}, {"text": "Plank", "gif": "plank", "gap_dur": 3.52, "work_dur": 46.87, "type": "work"}, {"text": "Done!", "gif": null, "gap_dur": 4.17, "work_dur": 10, "type": "done"}], "B": [{"text": "Joint Rotations", "gif": "warmup", "gap_dur": 3.39, "work_dur": 61.87, "type": "work"}, {"text": "Fast Feet", "gif": "run", "gap_dur": 3.16, "work_dur": 61.87, "type": "work"}, {"text": "High Knees", "gif": "highknees", "gap_dur": 3.0, "work_dur": 31.87, "type": "work"}, {"text": "Skater Hops", "gif": "skater", "gap_dur": 4.41, "work_dur": 30.0, "type": "work"}, {"text": "Line Hops", "gif": "highknees", "gap_dur": 3.89, "work_dur": 31.87, "type": "work"}, {"text": "Mountain Climbers", "gif": "climber", "gap_dur": 3.29, "work_dur": 31.87, "type": "work"}, {"text": "Single Leg RDL", "gif": "rdl", "gap_dur": 4.72, "work_dur": 64.0, "type": "work"}, {"text": "Quick Rest", "gif": null, "gap_dur": 2.64, "work_dur": 57.36, "type": "rest"}, {"text": "Skater Hops", "gif": "skater", "gap_dur": 3.0, "work_dur": 30.0, "type": "work"}, {"text": "Line Hops", "gif": "highknees", "gap_dur": 3.0, "work_dur": 31.87, "type": "work"}, {"text": "Mountain Climbers", "gif": "climber", "gap_dur": 3.0, "work_dur": 31.87, "type": "work"}, {"text": "Single Leg RDL", "gif": "rdl", "gap_dur": 3.0, "work_dur": 64.0, "type": "work"}, {"text": "Quick Rest", "gif": null, "gap_dur": 3.11, "work_dur": 56.89, "type": "rest"}, {"text": "Skater Hops", "gif": "skater", "gap_dur": 3.0, "work_dur": 30.0, "type": "work"}, {"text": "Line Hops", "gif": "highknees", "gap_dur": 3.0, "work_dur": 31.87, "type": "work"}, {"text": "Mountain Climbers", "gif": "climber", "gap_dur": 3.0, "work_dur": 31.87, "type": "work"}, {"text": "Single Leg RDL", "gif": "rdl", "gap_dur": 3.0, "work_dur": 64.0, "type": "work"}, {"text": "Done!", "gif": null, "gap_dur": 3.57, "work_dur": 10, "type": "done"}]}};
+
+        // 配置：请确保 assets 文件夹在本地 index_sync.html 旁边
+        const COACHES = {
+            Rafa: { img: "./assets/rafa.jpg", color: "text-yellow-500", bg: "bg-yellow-500" },
+            Carlos: { img: "./assets/carlos.jpg", color: "text-green-500", bg: "bg-green-500" },
+            Jannik: { img: "./assets/jannik.jpg", color: "text-orange-500", bg: "bg-orange-500" }
+        };
+
+        const VISUALS = {
+            warmup: "./assets/warmup.gif", jacks: "./assets/jacks.gif", highknees: "./assets/highknees.gif",
+            squat: "./assets/squat.gif", lunge: "./assets/lunge.gif", plank: "./assets/plank.gif",
+            climber: "./assets/climber.gif", skater: "./assets/skater.gif", rdl: "./assets/rdl.gif", run: "./assets/run.gif"
+        };
+
+        const formatTime = (s) => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+
+        const TrainingCalendar = ({ triggerUpdate }) => {
+            const [history, setHistory] = useState([]);
+            useEffect(() => {
+                const saved = JSON.parse(localStorage.getItem('jack_tennis_history') || '[]');
+                setHistory(saved);
+            }, [triggerUpdate]);
+            
+            const now = new Date();
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
+            const todayStr = now.toLocaleDateString('en-CA');
+            
+            const days = [];
+            for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="h-8 w-8"></div>);
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                let status = "bg-gray-800 text-gray-600";
+                if (history.includes(dateStr)) status = "bg-green-500 text-white font-bold";
+                else if (dateStr < todayStr) status = "bg-red-900/20 text-red-700";
+                else if (dateStr === todayStr) status = "bg-gray-700 text-white border";
+                days.push(<div key={d} className={`h-8 w-8 rounded-full flex items-center justify-center text-xs ${status}`}>{d}</div>);
+            }
+            return (
+                <div className="w-full bg-gray-900/50 rounded-xl p-4 border border-gray-800 mt-4">
+                    <div className="grid grid-cols-7 gap-2 justify-items-center">
+                        {['S','M','T','W','T','F','S'].map(d => <div key={d} className="text-[10px] text-gray-600 font-bold mb-1">{d}</div>)}
+                        {days}
+                    </div>
+                </div>
+            );
+        };
+
+        const WorkoutPage = ({ coach, session, onBack }) => {
+            const [stage, setStage] = useState('intro'); // intro, gap, work
+            const [stepIdx, setStepIdx] = useState(0);
+            const [timeLeft, setTimeLeft] = useState(15);
+            
+            const introAudio = useRef(new Audio());
+            const mainAudio = useRef(new Audio());
+            
+            // 获取该教练、该课程的精确时间表
+            const timeline = SYNC_DATA[coach][session];
+            
+            useEffect(() => {
+                // Play Intro
+                const rand = Math.floor(Math.random() * 8) + 1;
+                introAudio.current.src = `audio/Intro_${coach}_${rand}.mp3`;
+                introAudio.current.play().catch(e => console.log("Audio waiting..."));
+                
+                // Intro Timer (Fixed 15s)
+                const timer = setInterval(() => {
+                    setTimeLeft(p => {
+                        if (p <= 1) {
+                            clearInterval(timer);
+                            startMainSession();
+                            return 0;
+                        }
+                        return p - 1;
+                    });
+                }, 1000);
+                
+                return () => { clearInterval(timer); introAudio.current.pause(); mainAudio.current.pause(); };
+            }, []);
+
+            const startMainSession = () => {
+                mainAudio.current.src = `audio/Session_${session}_${coach}.mp3`;
+                mainAudio.current.play();
+                runStep(0);
+            };
+
+            const runStep = (idx) => {
+                if (idx >= timeline.length) return;
+                setStepIdx(idx);
+                
+                const step = timeline[idx];
+                
+                // Phase 1: Gap (Instruction)
+                setStage('gap');
+                setTimeLeft(Math.ceil(step.gap_dur));
+                
+                // Gap Timer
+                let gapElapsed = 0;
+                const gapInterval = setInterval(() => {
+                    gapElapsed += 0.1; // Check every 100ms for precision
+                    setTimeLeft(Math.ceil(step.gap_dur - gapElapsed));
+                    
+                    if (gapElapsed >= step.gap_dur) {
+                        clearInterval(gapInterval);
+                        
+                        // Phase 2: Work (Action)
+                        setStage('work');
+                        setTimeLeft(Math.ceil(step.work_dur));
+                        
+                        let workElapsed = 0;
+                        const workInterval = setInterval(() => {
+                            workElapsed += 0.1;
+                            setTimeLeft(Math.ceil(step.work_dur - workElapsed));
+                            
+                            if (workElapsed >= step.work_dur) {
+                                clearInterval(workInterval);
+                                runStep(idx + 1);
+                            }
+                        }, 100);
+                    }
+                }, 100);
+            };
+
+            const currentStep = timeline[stepIdx] || {};
+            const isRest = currentStep.type === 'rest';
+            const isDone = currentStep.type === 'done';
+            
+            // Progress Bar Logic
+            const mainSteps = timeline.filter(s => s.type !== 'done'); 
+            
+            return (
+                <div className="h-screen flex flex-col bg-gray-900">
+                    <div className="visual-frame relative">
+                        {stage === 'intro' ? (
+                            <img src={COACHES[coach].img} className="intro-img" 
+                                 onError={(e) => {e.target.style.display='none'; e.target.parentNode.innerHTML += '<div class="text-4xl">🎾</div>'}}/>
+                        ) : (
+                            stage === 'gap' ? (
+                                <div className="flex flex-col items-center animate-pulse">
+                                    <div className={`text-6xl mb-4 ${COACHES[coach].text}`}><i className="fas fa-ear-listen"></i></div>
+                                    <div className="text-2xl font-bold text-gray-400">LISTEN</div>
+                                </div>
+                            ) : (
+                                isRest ? <div className="text-4xl font-bold text-blue-400">RECOVER</div> :
+                                isDone ? <div className="text-4xl font-bold text-green-400">DONE!</div> :
+                                <img src={VISUALS[currentStep.gif]} className="work-img" />
+                            )
+                        )}
+                        <button onClick={onBack} className="absolute top-4 right-4 bg-black/50 px-3 py-1 rounded-full text-xs z-10">Exit</button>
+                    </div>
+
+                    <div className="flex-1 p-6 flex flex-col justify-between bg-gray-800">
+                        <div className="text-center">
+                            <h2 className="text-2xl font-black uppercase text-white mb-2 h-16 flex items-center justify-center leading-tight">
+                                {stage === 'intro' ? "Coach Wisdom" : currentStep.text}
+                            </h2>
+                            <div className={`text-7xl font-mono font-bold ${stage === 'work' ? 'text-white' : 'text-gray-500'}`}>
+                                {formatTime(timeLeft)}
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-1 h-3 w-full mt-4">
+                            {mainSteps.map((s, i) => (
+                                <div key={i} className={`flex-1 rounded-sm ${i < stepIdx ? (s.type==='rest'?'bg-blue-500':COACHES[coach].bg) : (i===stepIdx ? 'bg-white animate-pulse' : 'bg-gray-700')}`}></div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SetupPage = ({ onStart }) => {
+            const [coach, setCoach] = useState('Rafa');
+            const [session, setSession] = useState('A');
+            return (
+                <div className="min-h-screen p-6 flex flex-col justify-center max-w-md mx-auto space-y-8">
+                    <div className="text-center">
+                        <h1 className="text-4xl font-black italic text-white">JACK'S D1 CAMP</h1>
+                        <p className="text-gray-400 text-sm">Select Your Training</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                        {Object.keys(COACHES).map(c => (
+                            <button key={c} onClick={() => setCoach(c)} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 btn-press ${coach === c ? `${COACHES[c].bg} text-black border-white` : 'bg-gray-800 border-gray-700'}`}>
+                                <span className="font-bold">{c}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        {['A', 'B'].map(s => (
+                            <button key={s} onClick={() => setSession(s)} className={`p-6 rounded-xl border-2 btn-press ${session === s ? 'border-white bg-gray-700' : 'border-gray-800 bg-gray-800'}`}>
+                                <div className="text-2xl font-black">Session {s}</div>
+                            </button>
+                        ))}
+                    </div>
+                    <button onClick={() => onStart(coach, session)} className="w-full py-5 bg-white text-black font-black text-2xl rounded-xl shadow-xl btn-press">START</button>
+                    <TrainingCalendar triggerUpdate={0} />
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [mode, setMode] = useState('setup');
+            const [config, setConfig] = useState({ coach: 'Rafa', session: 'A' });
+            
+            const start = (c, s) => {
+                setConfig({ coach: c, session: s });
+                const now = new Date().toLocaleDateString('en-CA');
+                const h = JSON.parse(localStorage.getItem('jack_tennis_history') || '[]');
+                if (!h.includes(now)) localStorage.setItem('jack_tennis_history', JSON.stringify([...h, now]));
+                setMode('workout');
+            };
+
+            return <div className="bg-black min-h-screen font-sans">{mode === 'setup' ? <SetupPage onStart={start} /> : <WorkoutPage coach={config.coach} session={config.session} onBack={() => setMode('setup')} />}</div>;
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
