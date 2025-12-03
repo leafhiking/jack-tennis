@@ -290,27 +290,6 @@
                         </div>
                     </div>
 
-                    <div className="space-y-3 w-full">
-                         <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Settings</label>
-                         <input 
-                            type="password" 
-                            placeholder="ElevenLabs API Key (Optional)"
-                            value={localSettings.apiKey}
-                            onChange={(e) => handleChange('apiKey', e.target.value)}
-                            className="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:border-white outline-none text-sm text-white placeholder-gray-500"
-                        />
-                         <input 
-                            type="text" 
-                            placeholder="Custom Voice ID (Optional)"
-                            value={localSettings.voiceIds[localSettings.coach] || ''}
-                            onChange={(e) => {
-                                const newIds = {...localSettings.voiceIds, [localSettings.coach]: e.target.value};
-                                handleChange('voiceIds', newIds);
-                            }}
-                            className="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:border-white outline-none text-sm text-white placeholder-gray-500"
-                        />
-                    </div>
-
                     <button 
                         onClick={() => { setSettings(localSettings); initAudio(); onStart(); }}
                         className="w-full py-4 bg-white text-black font-black text-xl rounded-xl shadow-lg hover:bg-gray-200 btn-press uppercase tracking-wide flex items-center justify-center gap-2"
